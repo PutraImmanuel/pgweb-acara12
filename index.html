@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web GIS Flores Timur - GeoServer & LeafletJS</title>
+
+    <!-- CSS Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .legend {
+            background: white;
+            padding: 10px 12px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.5;
+            max-height: 55vh;
+            overflow-y: auto;
+        }
+
+        .legend hr {
+            border: 0;
+            border-top: 1px solid #ddd;
+            margin: 6px 0;
+        }
+
+        /* Tombol navigasi cepat ke lokasi layer */
+        .nav-lokasi {
+            position: absolute;
+            top: 10px;
+            left: 55px;
+            z-index: 1000;
+            background: white;
+            padding: 6px;
+            border-radius: 4px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
+        }
+
+        .nav-lokasi button {
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <!-- JS Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Tombol Navigasi -->
+    <div class="nav-lokasi">
+            <button onclick="map.setView([-8.3249682, 123.0053329], 11)">Flores Timur</button>
+            <button onclick="map.setView([-7.2741651, 112.7424159], 13)">Pendidikan Surabaya</button>
+        </div>
+
+    <script>
+        // 1. Inisialisasi Peta
+        var map = L.map("map").setView([-8.3249682, 123.0053329], 11);
+
+        // 2. Basemap OpenStreetMap & Esri World Imagery
+        var osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        var esriImagery = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+            maxZoom: 19,
+            attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+        });
+
+        // 3. Layer WMS 1: Batas Kecamatan (Shapefile)
+        var wmsBatasKecamatan = L.tileLayer.wms("http://localhost:8080/geoserver/pgweb9/wms", {
+            layers: "pgweb9:batas_kecamatan",
+            format: "image/png",
+            transparent: true
+        }).addTo(map);
+
+        // 4. Layer WMS 2: Jaringan Jalan (Shapefile)
+        var wmsJalan = L.tileLayer.wms("http://localhost:8080/geoserver/pgweb9/wms", {
+            layers: "pgweb9:jalan",
+            format: "image/png",
+            transparent: true
+        }).addTo(map);
+
+        // 5. Layer WMS 3: Data Sekolah Surabaya (SQL View MySQL pgweb9)
+        var wmsSekolah = L.tileLayer.wms("http://localhost:8080/geoserver/pgweb9/wms", {
+            layers: "pgweb9:sma_smk_sby",
+            format: "image/png",
+            transparent: true
+        }).addTo(map);
+
+        // 6. Menampilkan Legenda Ketiga Layer dari GeoServer
+        var legend = L.control({ position: "bottomleft" });
+        legend.onAdd = function () {
+            var div = L.DomUtil.create("div", "legend");
+            div.innerHTML =
+                "<strong>Batas Kecamatan</strong><br>" +
+                '<img src="http://localhost:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=20&HEIGHT=20&LAYER=pgweb9:batas_kecamatan" alt="Legenda Batas Kecamatan">' +
+                "<hr>" +
+                "<strong>Jalan</strong><br>" +
+                '<img src="http://localhost:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=20&HEIGHT=20&LAYER=pgweb9:jalan" alt="Legenda Jalan">' +
+                "<hr>" +
+                "<strong>Sekolah</strong><br>" +
+                '<img src="http://localhost:8080/geoserver/wms?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=20&HEIGHT=20&LAYER=pgweb9:toponimi" alt="Legenda Toponimi">';
+            return div;
+        };
+        legend.addTo(map);
+
+        // 7. Layer Control (Switch Basemap & Overlay)
+        var baseMaps = {
+            "OpenStreetMap": osm,
+            "Esri World Imagery": esriImagery
+        };
+
+        var overlayMaps = {
+            "Batas Kecamatan": wmsBatasKecamatan,
+            "Jalan": wmsJalan,
+            "Sekolah": wmsSekolah
+        };
+
+        L.control.layers(baseMaps, overlayMaps, {
+            position: "topright",
+        }).addTo(map);
+    </script>
+
+</body>
+
+</html>
